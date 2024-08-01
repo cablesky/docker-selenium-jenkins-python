@@ -1,0 +1,78 @@
+version: '3'
+services:
+  jenkins:
+    image: jenkins
+    container_name: jenkins
+    build:
+      context: jenkins
+    ports:
+      - "8080:8080"
+    volumes:
+      - "$PWD/jenkins/jenkins_home:/var/jenkins_home"
+      - "$PWD/remote-key:/tmp/remote-key"      
+    networks:
+      - net
+    restart: always
+  remote_client:
+    container_name: remote_client
+    image: remote_client
+    build:
+      context: remote_client
+    volumes:
+      - "$PWD/remote-key.pub:/home/remote_user/.ssh/authorized_keys"
+      - "$PWD/remote_client/selenium:/home/remote_user/selenium"
+      - "$PWD/remote-key:/tmp/remote-key"           
+    networks:
+      - net
+
+  # from https://github.com/SeleniumHQ/docker-selenium/tree/selenium-3
+  chrome:
+    image: selenium/node-chrome:4.0.0-beta-4-20210608
+    volumes:
+      - /dev/shm:/dev/shm
+    depends_on:
+      - selenium-hub
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+    ports:
+      - "6900:5900"
+    networks: 
+      - net
+
+  firefox:
+    image: selenium/node-firefox:4.0.0-beta-4-20210608
+    volumes:
+      - /dev/shm:/dev/shm
+    depends_on:
+      - selenium-hub
+    environment:
+      - SE_EVENT_BUS_HOST=selenium-hub
+      - SE_EVENT_BUS_PUBLISH_PORT=4442
+      - SE_EVENT_BUS_SUBSCRIBE_PORT=4443
+    ports:
+      - "6902:5900"
+    networks: 
+      - net
+
+  selenium-hub:
+    image: selenium/hub:4.0.0-beta-4-20210608
+    container_name: selenium-hub
+    hostname: selenium-hub
+    ports:
+      - "4442:4442"
+      - "4443:4443"
+      - "4444:4444"
+    environment:
+      # in milliseconds
+      - GRID_NEW_SESSION_WAIT_TIMEOUT=600000
+      # in seconds
+      # wait for working code
+      - GRID_BROWSER_TIMEOUT=600
+      # wait when nothing happens
+      - GRID_TIMEOUT=60
+    networks: 
+      - net
+networks: 
+  net:

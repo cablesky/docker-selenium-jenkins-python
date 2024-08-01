@@ -1,0 +1,45 @@
+FROM ubuntu:latest
+
+# SSH install
+RUN apt-get update && apt-get upgrade -y && \
+    apt-get install -y openssh-server
+
+RUN useradd remote_user && \
+    echo "remote_user:1234" | chpasswd && \
+    mkdir /home/remote_user/.ssh -p && \
+    chmod 700 /home/remote_user/.ssh && \
+    chown remote_user:remote_user /home/remote_user/.ssh && \    
+    mkdir -p -m0755 /var/run/sshd
+
+RUN chown remote_user:remote_user -R /home/remote_user
+
+# Java 8 install
+RUN apt-get update && \
+    apt-get install -y openjdk-8-jdk ant ca-certificates-java && \
+    apt-get clean && \
+    update-ca-certificates -f && \
+    rm -rf /var/lib/apt/lists/* /var/cache/oracle-jdk8-installer
+
+# Install Python and required packages
+RUN apt-get update && apt-get install -y \
+    software-properties-common \
+    python3-full \
+    python3-pip \
+    python3-venv
+
+# Create a virtual environment
+RUN python3 -m venv /opt/venv
+
+# Activate virtual environment and install Python packages
+RUN . /opt/venv/bin/activate && \
+    pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir selenium pytest
+
+# Add virtual environment to PATH
+ENV PATH="/opt/venv/bin:$PATH"
+
+RUN mkdir /home/remote_user/selenium
+RUN chmod 777 /home/remote_user/selenium
+RUN chown remote_user:remote_user -R /home/remote_user/selenium
+
+CMD /usr/sbin/sshd -D
